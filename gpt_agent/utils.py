@@ -1,8 +1,10 @@
+"""Helper functions for the GPT Agent."""
+
 import inspect
 from typing import Callable, Literal, get_origin, get_args
 from docstring_parser import parse
 from enum import EnumMeta
-from custom_types import JsonType
+from gpt_agent.custom_types import JsonType
 from deepdiff import DeepDiff
 from pprint import pprint
 
@@ -31,7 +33,15 @@ def json_diff(json1: JsonType, json2: JsonType):
 # Assuming TYPE_MAP and JsonType are defined elsewhere
 
 
-def expand_type(type_: type) -> JsonType:
+def expand_type(type_: type) -> dict[str, JsonType]:
+    """Expand a type into a JSON schema.
+
+    Args:
+        type_: the type to expand out
+
+    Returns:
+        the JSON schema for the type
+    """
     if type_ in TYPE_MAP:
         return {"type": TYPE_MAP[type_]}
     elif get_origin(type_) == Literal:
@@ -98,9 +108,8 @@ def generate_json_schema_for_function(func: Callable) -> JsonType:
 
         param_type = func_signature.parameters[param_name].annotation
 
-        param_properties = {
-            "description": docstring_arg.description,
-        }
-        param_properties.update(expand_type(param_type))
+        param_properties = expand_type(param_type)
+        param_properties["description"] = docstring_arg.description
+
         schema["function"]["parameters"]["properties"][param_name] = param_properties
     return schema

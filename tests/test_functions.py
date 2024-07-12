@@ -1,4 +1,4 @@
-from utils import generate_json_schema_for_function, json_diff
+from gpt_agent.utils import generate_json_schema_for_function, json_diff
 from enum import Enum
 from typing import Literal
 

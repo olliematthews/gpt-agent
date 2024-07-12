@@ -1,19 +1,20 @@
 from openai import OpenAI, APIError, RateLimitError
 from typing import Callable
-from utils import generate_json_schema_for_function
-from typing import Literal, Optional
+from pathlib import Path
+from gpt_agent.utils import generate_json_schema_for_function
+from typing import Optional
 import json
 from logger import logger
 
 
-class OpenAIAgent:
+class GPTAgent:
     N_RETRIES = 3
 
     def __init__(self, system_prompt: str, model: str):
         self.client = OpenAI()
         self.model = model
         self.functions = {}
-        self.messages = [{"role": "system", "content": system_prompt}]
+        self.message_history = [{"role": "system", "content": system_prompt}]
 
     def register_function(self, func: Callable):
         self.functions[func.__name__] = {
@@ -38,7 +39,7 @@ class OpenAIAgent:
             try:
                 chat_response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=self.messages + new_messages,
+                    messages=self.message_history + new_messages,
                     tools=[f["schema"] for f in self.functions.values()],
                     **kwargs,
                 )
@@ -81,7 +82,7 @@ class OpenAIAgent:
             logger.debug(f"Got response: {message.content}")
             new_messages.append({"role": "assistant", "content": message.content})
         if save_interaction:
-            self.messages.extend(new_messages)
+            self.message_history.extend(new_messages)
         return message.content
 
     def run(self, prompt: str, **kwargs) -> str:
@@ -95,36 +96,34 @@ class OpenAIAgent:
 
         return ret
 
-
-if __name__ == "__main__":
-    agent = OpenAIAgent("You are a helpful assistant.", "gpt-3.5-turbo-0125")
-
-    def get_current_weather(
-        location: str, unit: Literal["celsius", "fahrenheit"] = "fahrenheit"
-    ) -> str:
-        """Get the current weather
-
-        Args:
-            location: The city and state, e.g. San Francisco, CA
-            unit: The temperature unit to use. Infer this from the users location. Defaults to fahrenheit.
-        """
-        return "sunny" if "rio" in location.lower() else "bloody terrible"
-
-    agent.register_function(get_current_weather)
-
-    print(agent.run("What is the weather in San Fran?"))
-    print(agent.run("What about in Rio?"))
-
-    def calculate_funny_duddy_of_ints(nums: list[int]) -> str:
-        """Calculate the funny duddy of a list of integers
-
-        Args:
-            nums: The integers to calculate the funny duddy of
-        """
-        return "Silly sausages"
-
-    agent.register_function(calculate_funny_duddy_of_ints)
-
-    print(agent.run("What is the funny duddy of the digits of 132?"))
-
-    [print(m) for m in agent.messages]
+    def save_messages_to_file(self, file_path: Path):
+        """Print the message history for this agent"""
+        with open(file_path, "w") as fd:
+            logger.info(f"Writing messages to {file_path}")
+            for message in self.message_history:
+                fd.write("----------------------------\n")
+                if isinstance(message, dict):
+                    match message["role"]:
+                        case "system":
+                            fd.write("SYSTEM MESSAGE\n")
+                        case "user":
+                            fd.write("USER MESSAGE\n")
+                        case "assistant":
+                            fd.write("USER MESSAGE\n")
+                        case "tool":
+                            fd.write("TOOL CALL\n")
+                            fd.write(f"{message['name']}\n")
+                    fd.write("\n")
+                    fd.write(message["content"])
+                    fd.write("\n")
+                else:
+                    assert (
+                        message.role == "assistant"
+                    ), "Only implemented expect assistant messages in this format"
+                    fd.write("ASSISTANT MESSAGE\n")
+                    fd.write("\n")
+                    if not message.tool_calls:
+                        fd.write(message.content)
+                    else:
+                        [fd.write(str(tc)) for tc in message.tool_calls]
+                    fd.write("\n")

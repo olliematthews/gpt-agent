@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "apollo-take-home"
+name = "gpt-agent"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
@@ -10,9 +10,13 @@ python = "^3.12"
 numpy = "^2.0.0"
 pandas = "^2.2.2"
 openai = "^1.35.13"
-pytest = "^8.2.2"
-ruff = "^0.5.1"
+docstring-parser = "^0.16"
+deepdiff = "^7.0.1"
 
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.5.1"
+pytest = "^8.2.2"
 
 [build-system]
 requires = ["poetry-core"]
